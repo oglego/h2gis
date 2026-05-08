@@ -124,6 +124,7 @@ public class H2GISFunctions {
         return new Function[] {
                 new HexToVarBinary(),
                 new ST_GeomFromText(),
+                new ST_Angle(),
                 new ST_Area(),
                 new ST_AsBinary(),
                 new ST_GeometryType(),

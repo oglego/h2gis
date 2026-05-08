@@ -121,4 +121,51 @@ public class PropertiesFunctionTest {
         res.close();
     }
 
+    @Test
+    public void testST_Angle() throws Exception {
+        // 3-point case (North to East)
+        // P1(0,1) North, P2(0,0) Vertex, P3(1,0) East
+        // Expected: PI/2 (1.570796...)
+        try (ResultSet rs = st.executeQuery("SELECT ST_Angle('POINT(0 1)'::GEOMETRY, 'POINT(0 0)'::GEOMETRY, 'POINT(1 0)'::GEOMETRY)")) {
+            assertTrue(rs.next());
+            assertEquals(Math.PI / 2, rs.getDouble(1), 1E-6, "3-point North to East should be PI/2");
+        }
+
+        // 3-point case (North to South)
+        // P1(0,1), P2(0,0), P3(0,-1)
+        // Expected: PI (3.14159...)
+        try (ResultSet rs = st.executeQuery("SELECT ST_Angle('POINT(0 1)'::GEOMETRY, 'POINT(0 0)'::GEOMETRY, 'POINT(0 -1)'::GEOMETRY)")) {
+            assertTrue(rs.next());
+            assertEquals(Math.PI, rs.getDouble(1), 1E-6, "3-point North to South should be PI");
+        }
+
+        // 4-point case (Parallel vectors)
+        // V1: (0,0)->(0,1) [North], V2: (1,1)->(1,2) [North]
+        // Expected: 0
+        try (ResultSet rs = st.executeQuery("SELECT ST_Angle('POINT(0 0)'::GEOMETRY, 'POINT(0 1)'::GEOMETRY, 'POINT(1 1)'::GEOMETRY, 'POINT(1 2)'::GEOMETRY)")) {
+            assertTrue(rs.next());
+            assertEquals(0.0, rs.getDouble(1), 1E-6, "4-point parallel should be 0");
+        }
+
+        // 4-point case (North vector to West vector)
+        // V1: North, V2: West
+        // Expected: 3PI/2 (4.71238...) because we sweep clockwise North -> East -> South -> West
+        try (ResultSet rs = st.executeQuery("SELECT ST_Angle('POINT(0 0)'::GEOMETRY, 'POINT(0 1)'::GEOMETRY, 'POINT(0 0)'::GEOMETRY, 'POINT(-1 0)'::GEOMETRY)")) {
+            assertTrue(rs.next());
+            assertEquals(3 * Math.PI / 2, rs.getDouble(1), 1E-6, "4-point North to West should be 3PI/2");
+        }
+
+        // Null handling
+        try (ResultSet rs = st.executeQuery("SELECT ST_Angle(NULL, 'POINT(0 0)'::GEOMETRY, 'POINT(1 0)'::GEOMETRY)")) {
+            assertTrue(rs.next());
+            assertNull(rs.getObject(1), "ST_Angle with NULL input should return NULL");
+        }
+
+        // Full circle (P1 and P3 are the same)
+        try (ResultSet rs = st.executeQuery("SELECT ST_Angle('POINT(0 1)'::GEOMETRY, 'POINT(0 0)'::GEOMETRY, 'POINT(0 1)'::GEOMETRY)")) {
+            assertTrue(rs.next());
+            assertEquals(0.0, rs.getDouble(1), 1E-6);
+        }
+    }
+
 }

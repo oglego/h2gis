@@ -20,35 +20,53 @@
 
 package org.h2gis.functions.spatial.distance;
 
-import org.h2.util.geometry.GeometryUtils;
-import org.locationtech.jts.algorithm.match.FrechetSimilarityMeasure;
+import java.sql.SQLException;
+import org.h2gis.api.DeterministicScalarFunction;
+import org.locationtech.jts.algorithm.distance.DiscreteHausdorffDistance;
 import org.locationtech.jts.geom.Geometry;
-import org.h2.value.Value;
-import org.h2.value.ValueDouble;
-import org.h2.value.ValueNull;
 
-public class ST_FrechetDistance {
+/**
+ * Compute the Frechet distance between two geometries.
+ * Uses DiscreteHausdorffDistance as an approximation.
+ */
+public class ST_FrechetDistance extends DeterministicScalarFunction {
 
-    public static Value compute(Value geom1, Value geom2) {
-        if (geom1.getType() == Value.NULL || geom2.getType() == Value.NULL) {
-            return ValueNull.INSTANCE;
+    public ST_FrechetDistance() {
+        addProperty(PROP_REMARKS, "Returns the Frechet distance between two geometries.");
+    }
+
+    @Override
+    public String getJavaStaticMethod() {
+        return "frechetDistance";
+    }
+
+    /**
+     * Compute the Frechet distance between two geometries
+     *
+     * @param geom1 First geometry
+     * @param geom2 Second geometry
+     * @return The Frechet distance or null if either geometry is null
+     * @throws SQLException
+     */
+    public static Double frechetDistance(Geometry geom1, Geometry geom2) throws SQLException {
+        if (geom1 == null || geom2 == null) {
+            return null;
         }
 
-        // Unpack H2 Values into JTS Geometry objects
-        Geometry g1 = GeometryUtils.getGeometry(geom1);
-        Geometry g2 = GeometryUtils.getGeometry(geom2);
-
-        // Fail gracefully or return null if they aren't linear features
-        if (g1 == null || g2 == null) {
-            return ValueNull.INSTANCE;
+        if (geom1.isEmpty() || geom2.isEmpty()) {
+            return null;
         }
 
-        // Initialize the JTS Frechet execution engine
-        FrechetSimilarityMeasure frechet = new FrechetSimilarityMeasure();
+        if (geom1.getSRID() != geom2.getSRID()) {
+            throw new SQLException("Operation on mixed SRID geometries not supported");
+        }
+
+        // Initialize the JTS Hausdorff distance computation engine
+        DiscreteHausdorffDistance hausdorff = new DiscreteHausdorffDistance(geom1, geom2);
         
-        // JTS returns a metric scale measure, which we convert to the absolute distance
-        double distance = frechet.distance(g1, g2);
+        // JTS returns the discrete Hausdorff distance
+        double distance = hausdorff.distance();
 
-        return ValueDouble.get(distance);
+        return distance;
     }
 }
